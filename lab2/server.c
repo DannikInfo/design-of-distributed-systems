@@ -21,28 +21,34 @@ static int forkCount = -1;
 static pid_t pid[30] = {0};
 static int gConnfd;
 static int workEnd = 1;
+pthread_t tid[3];
 
 void *controlThread(void *forkId){
     char pBuff[1];
     while(1){
         read(p[0], pBuff, 1);
         if(pBuff[0] == '1') {
-            if (forkId != 0)
+            write(p[1], "1", 1);
+            if (forkId != 0) {
                 for (; forkCount > 0; forkCount--) {
                     write(p[1], "1", 1);
                     waitpid(pid[forkCount], NULL, 0);
                 }
+                printf("process stop %d\n", getpid());
+                exit(0);
+            }
 
-            if (forkId == 0)
-                write(gConnfd, "Bye", 3);
-
-            printf("process stop %d\n", getpid());
-            while(1){
-                if(workEnd)
-                    exit(0);
-                sleep(1);
+            if (forkId == 0) {
+                printf("process stop %d\n", getpid());
+                while(1) {
+                    if (workEnd) {
+                        write(gConnfd, "Bye", 3);
+                        exit(0);
+                    }
+                }
             }
         }
+        sleep(1);
     }
 }
 
@@ -155,6 +161,7 @@ void worker(int connfd, int forkId)
             }
 
             printf("Parsed: %d %c %d \n", num1, actor, num2);
+            sleep(5);
 
             if(errno != 0){
                 bzero(buff, MAX);
@@ -171,6 +178,7 @@ void worker(int connfd, int forkId)
                 sprintf(buff, "Answer is: %llu \n", calcFact(num1));
             write(connfd, buff, sizeof(buff));
             workEnd = 1;
+            printf("work ended %d pid:%d\n", workEnd, getpid());
         }
     }
 }
@@ -300,7 +308,7 @@ int main(){
     if (pipe(p) < 0)
         exit(1);
 
-    pthread_t tid[3];
+
     pthread_create(&tid[0], NULL, controlThread, (void *) &tid[0]);
     pthread_create(&tid[1], NULL, connectionThread, (void *) sockfd);
     pthread_create(&tid[2], NULL, broadcastThread, (void *) &tid[2]);

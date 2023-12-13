@@ -1,0 +1,15 @@
+FROM ubuntu
+
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update && \
+    apt-get -y install gcc mono-mcs && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /server/
+COPY server.c .
+COPY creds.data .
+COPY srv.sh .
+
+RUN gcc server.c -o server && chmod +x srv.sh
+
+CMD ["sh", "-c", "/server/srv.sh"]
